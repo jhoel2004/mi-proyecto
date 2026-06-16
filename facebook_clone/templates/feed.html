@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed - Facebook Clone</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Barra de navegación -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="logo-small">facebook</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('feed') }}" class="active">Inicio</a>
+                <a href="#">Amigos</a>
+                <a href="#">Mensajes</a>
+                <a href="#">Notificaciones</a>
+            </div>
+            <div class="nav-right">
+                <span class="user-name">{{ usuario.nombre }}</span>
+                <a href="{{ url_for('perfil', usuario_id=usuario.id) }}" class="profile-link">
+                    <img src="https://ui-avatars.com/api/?name={{ usuario.nombre }}+{{ usuario.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-small">
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn-logout">Salir</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Sidebar izquierdo -->
+        <aside class="sidebar-left">
+            <div class="menu-item">
+                <img src="https://ui-avatars.com/api/?name={{ usuario.nombre }}+{{ usuario.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-tiny">
+                <span>{{ usuario.nombre_completo() }}</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon">👥</span>
+                <span>Amigos ({{ usuario.amigos_de.count() }})</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon">📷</span>
+                <span>Fotos</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon">🏪</span>
+                <span>Mercado</span>
+            </div>
+        </aside>
+
+        <!-- Feed principal -->
+        <main class="feed">
+            <!-- Crear publicación -->
+            <div class="create-post">
+                <div class="post-header">
+                    <img src="https://ui-avatars.com/api/?name={{ usuario.nombre }}+{{ usuario.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-medium">
+                    <form method="POST" action="{{ url_for('publicar') }}" style="flex: 1;">
+                        <input type="text" name="contenido" placeholder="¿Qué estás pensando, {{ usuario.nombre }}?" required>
+                        <input type="hidden" name="imagen" value="">
+                        <button type="submit" class="btn-post">Publicar</button>
+                    </form>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Publicaciones -->
+            {% for publicacion in publicaciones %}
+            <article class="post">
+                <div class="post-header">
+                    <a href="{{ url_for('perfil', usuario_id=publicacion.autor.id) }}" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+                        <img src="https://ui-avatars.com/api/?name={{ publicacion.autor.nombre }}+{{ publicacion.autor.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-medium">
+                        <div>
+                            <strong>{{ publicacion.autor.nombre_completo() }}</strong>
+                            <p class="post-time">{{ publicacion.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="post-content">
+                    <p>{{ publicacion.contenido }}</p>
+                    {% if publicacion.imagen %}
+                    <img src="{{ publicacion.imagen }}" alt="Imagen de la publicación" class="post-image">
+                    {% endif %}
+                </div>
+                
+                <div class="post-stats">
+                    <span class="likes-count">{{ publicacion.contar_likes() }} Me gusta</span>
+                    <span class="comments-count">{{ publicacion.contar_comentarios() }} comentarios</span>
+                </div>
+                
+                <div class="post-actions">
+                    <a href="{{ url_for('like', publicacion_id=publicacion.id) }}" class="action-btn {% if session.usuario_id in [like.usuario_id for like in publicacion.likes] %}liked{% endif %}">
+                        👍 Me gusta
+                    </a>
+                    <button class="action-btn" onclick="document.getElementById('comment-form-{{ publicacion.id }}').style.display='block'">
+                        💬 Comentar
+                    </button>
+                    <button class="action-btn">
+                        ↗️ Compartir
+                    </button>
+                </div>
+                
+                <!-- Comentarios -->
+                <div class="comments-section" id="comments-{{ publicacion.id }}">
+                    {% for comentario in publicacion.comentarios %}
+                    <div class="comment">
+                        <img src="https://ui-avatars.com/api/?name={{ comentario.autor.nombre }}+{{ comentario.autor.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-tiny">
+                        <div class="comment-content">
+                            <strong>{{ comentario.autor.nombre_completo() }}</strong>
+                            <p>{{ comentario.contenido }}</p>
+                            <small>{{ comentario.fecha.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <form method="POST" action="{{ url_for('comentar', publicacion_id=publicacion.id) }}" class="comment-form" id="comment-form-{{ publicacion.id }}" style="{% if not publicacion.comentarios %}display:none;{% endif %}">
+                        <img src="https://ui-avatars.com/api/?name={{ usuario.nombre }}+{{ usuario.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-tiny">
+                        <input type="text" name="contenido" placeholder="Escribe un comentario..." required>
+                        <button type="submit" class="btn-comment">Enviar</button>
+                    </form>
+                </div>
+            </article>
+            {% endfor %}
+        </main>
+
+        <!-- Sidebar derecho -->
+        <aside class="sidebar-right">
+            <h3>Personas que quizás conozcas</h3>
+            {% for amigo in usuario.amigos_de.limit(5) %}
+            <div class="suggestion-item">
+                <a href="{{ url_for('perfil', usuario_id=amigo.id) }}" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+                    <img src="https://ui-avatars.com/api/?name={{ amigo.nombre }}+{{ amigo.apellido }}&background=1877f2&color=fff" alt="Perfil" class="avatar-tiny">
+                    <span>{{ amigo.nombre_completo() }}</span>
+                </a>
+            </div>
+            {% endfor %}
+        </aside>
+    </div>
+</body>
+</html>
